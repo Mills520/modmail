@@ -22,7 +22,9 @@ type Collections struct {
 	Config *mongo.Collection
 }
 
-func NewDatabase(uri string) (*Data, error) {
+// NewDatabase connects to MongoDB and checks it can be reached, giving up
+// early if ctx is canceled (the bot is shutting down).
+func NewDatabase(ctx context.Context, uri string) (*Data, error) {
 	parsed, err := url.Parse(uri)
 	if err != nil {
 		return nil, err
@@ -40,9 +42,9 @@ func NewDatabase(uri string) (*Data, error) {
 
 	// Connect doesn't contact the server, so check it can be reached now
 	// rather than on the first query.
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	pingCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
-	if err := conn.Ping(ctx, nil); err != nil {
+	if err := conn.Ping(pingCtx, nil); err != nil {
 		_ = conn.Disconnect(context.Background())
 		return nil, fmt.Errorf("can't reach MongoDB: %w", err)
 	}
